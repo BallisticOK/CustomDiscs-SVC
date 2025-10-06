@@ -15,89 +15,95 @@ import java.util.Date;
 import java.util.Objects;
 
 public class YamlLanguage {
-  private final YamlFile language = new YamlFile();
-  private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final YamlFile language = new YamlFile();
+    private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-  @SuppressWarnings("all")
-  public void init() {
-    CustomDiscs plugin = CustomDiscs.getPlugin();
-    try {
-      File languageFolder = Path.of(plugin.getDataFolder().getPath(), "language").toFile();
-      languageFolder.mkdir();
-      File languageFile = new File(languageFolder, Formatter.format("{0}.yml", plugin.getCDConfig().getLocale()));
-      boolean isNewFile = false;
+    @SuppressWarnings("all")
+    public void init() {
+        CustomDiscs plugin = CustomDiscs.getPlugin();
+        try {
+            File languageFolder = Path.of(plugin.getDataFolder().getPath(), "language").toFile();
+            languageFolder.mkdir();
+            File languageFile = new File(languageFolder, Formatter.format("{0}.yml", plugin.getCDConfig().getLocale()));
+            boolean isNewFile = false;
 
-      if (!languageFile.exists()) {
-        InputStream inputStream = plugin.getClass().getClassLoader().getResourceAsStream(Formatter.format("language/{0}.yml",
-            languageExists(plugin.getCDConfig().getLocale()) ? plugin.getCDConfig().getLocale() : Language.ENGLISH.getLabel()
-        ));
-        Files.copy(inputStream, languageFile.toPath());
-        isNewFile = true;
-      }
+            if (!languageFile.exists()) {
+                InputStream inputStream = plugin.getClass().getClassLoader().getResourceAsStream(Formatter.format("language/{0}.yml",
+                        languageExists(plugin.getCDConfig().getLocale()) ? plugin.getCDConfig().getLocale() : Language.ENGLISH.getLabel()
+                ));
+                Files.copy(inputStream, languageFile.toPath());
+                isNewFile = true;
+            }
 
-      language.load(languageFile);
+            language.load(languageFile);
 
-      if (isNewFile) {
-        language.set("version", plugin.getDescription().getVersion());
-        language.save(languageFile);
-      }
+            if (isNewFile) {
+                language.set("version", plugin.getDescription().getVersion());
+                language.save(languageFile);
+            }
 
-      if (!language.getString("version").equals(plugin.getDescription().getVersion()) || plugin.getCDConfig().isDebug()) {
-        File oldLanguageFile = new File(languageFolder.getPath(), Formatter.format(
-            "{0}-{1}.backup",
-            languageFile.getName(),
-            new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss").format(new Date())
-        ));
-        if (oldLanguageFile.exists()) oldLanguageFile.delete();
-        Files.copy(languageFile.toPath(), oldLanguageFile.toPath());
-        languageFile.delete();
+            if (!language.getString("version").equals(plugin.getDescription().getVersion()) || plugin.getCDConfig().isDebug()) {
+                File oldLanguageFile = new File(languageFolder.getPath(), Formatter.format(
+                        "{0}-{1}.backup",
+                        languageFile.getName(),
+                        new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss").format(new Date())
+                ));
+                if (oldLanguageFile.exists()) oldLanguageFile.delete();
+                Files.copy(languageFile.toPath(), oldLanguageFile.toPath());
+                languageFile.delete();
 
-        InputStream inputStream = plugin.getClass().getClassLoader().getResourceAsStream(Formatter.format("language{0}{1}.yml", File.separator, plugin.getCDConfig().getLocale()));
-        Files.copy(inputStream, languageFile.toPath());
+                InputStream inputStream = plugin.getClass().getClassLoader().getResourceAsStream(Formatter.format("language{0}{1}.yml", File.separator, plugin.getCDConfig().getLocale()));
+                Files.copy(inputStream, languageFile.toPath());
 
-        Object oldLanguage = language.getMapValues(true).get("language");
+                Object oldLanguage = language.getMapValues(true).get("language");
 
-        language.load(languageFile);
-        language.set("version", plugin.getDescription().getVersion());
-        language.save(languageFile);
+                language.load(languageFile);
+                language.set("version", plugin.getDescription().getVersion());
+                language.save(languageFile);
 
-        Object newLanguage = language.getMapValues(true).get("language");
+                Object newLanguage = language.getMapValues(true).get("language");
 
-        if (oldLanguage.equals(newLanguage)) {
-          CustomDiscs.debug("Ich habe es geschafft! Die Variablen sind identisch.");
-          oldLanguageFile.delete();
-        } else {
-          CustomDiscs.debug("Nein, das ist nicht gut.");
+                if (oldLanguage.equals(newLanguage)) {
+                    CustomDiscs.debug("Ich habe es geschafft! Die Variablen sind identisch.");
+                    oldLanguageFile.delete();
+                } else {
+                    CustomDiscs.debug("Nein, das ist nicht gut.");
+                }
+            }
+        } catch (Throwable e) {
+            CustomDiscs.error("Error while loading language: ", e);
         }
-      }
-    } catch (Throwable e) {
-      CustomDiscs.error("Error while loading language: ", e);
     }
-  }
 
-  private String getFormattedString(String key, Object... replace) {
-    return Formatter.format(language.getString(
-        Formatter.format("language.{0}", key), Formatter.format("<{0}>", key)), replace);
-  }
+    private String getFormattedString(String key, Object... replace) {
+        return Formatter.format(language.getString(
+                Formatter.format("language.{0}", key), Formatter.format("<{0}>", key)), replace);
+    }
 
-  public Component component(String key, Object... replace) {
-    return miniMessage.deserialize(getFormattedString(key, replace));
-  }
+    public Component component(String key, Object... replace) {
+        return miniMessage.deserialize(getFormattedString(key, replace));
+    }
 
-  public Component PComponent(String key, Object... replace) {
-    return miniMessage.deserialize(string("prefix.normal") + getFormattedString(key, replace));
-  }
+    public Component component(String key, Component replacement) {
+        return miniMessage.deserialize(getFormattedString(key))
+                .append(Component.space())
+                .append(replacement);
+    }
 
-  public Component deserialize(String message, Object... replace) {
-    return miniMessage.deserialize(Formatter.format(message, replace));
-  }
+    public Component PComponent(String key, Object... replace) {
+        return miniMessage.deserialize(string("prefix.normal") + getFormattedString(key, replace));
+    }
 
-  public String string(String key, Object... replace) {
-    return getFormattedString(key, replace);
-  }
+    public Component deserialize(String message, Object... replace) {
+        return miniMessage.deserialize(Formatter.format(message, replace));
+    }
 
-  public boolean languageExists(String label) {
-    InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(Formatter.format("language{0}{1}.yml", File.separator, label));
-    return !Objects.isNull(inputStream);
-  }
+    public String string(String key, Object... replace) {
+        return getFormattedString(key, replace);
+    }
+
+    public boolean languageExists(String label) {
+        InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(Formatter.format("language{0}{1}.yml", File.separator, label));
+        return !Objects.isNull(inputStream);
+    }
 }

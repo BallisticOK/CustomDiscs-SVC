@@ -6,11 +6,10 @@ import io.github.subkek.customdiscs.CustomDiscs;
 import io.github.subkek.customdiscs.Keys;
 import io.github.subkek.customdiscs.command.AbstractSubCommand;
 import io.github.subkek.customdiscs.util.LegacyUtil;
-import net.kyori.adventure.platform.bukkit.BukkitComponentSerializer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
@@ -21,91 +20,93 @@ import org.bukkit.persistence.PersistentDataContainer;
 import java.util.List;
 
 public class CreateScSubCommand extends AbstractSubCommand {
-  private final CustomDiscs plugin = CustomDiscs.getPlugin();
+    private final CustomDiscs plugin = CustomDiscs.getPlugin();
 
-  public CreateScSubCommand() {
-    super("createsc");
+    public CreateScSubCommand() {
+        super("createsc");
 
-    this.withFullDescription(getDescription());
-    this.withUsage(getUsage());
+        this.withFullDescription(getDescription());
+        this.withUsage(getUsage());
 
-    this.withArguments(new TextArgument("url"));
-    this.withArguments(new TextArgument("song_name"));
+        this.withArguments(new TextArgument("url"));
+        this.withArguments(new TextArgument("song_name"));
 
-    this.executesPlayer(this::executePlayer);
-    this.executes(this::execute);
-  }
-
-  @Override
-  public String getDescription() {
-    return plugin.getLanguage().string("command.createsc.description");
-  }
-
-  @Override
-  public String getSyntax() {
-    return plugin.getLanguage().string("command.createsc.syntax");
-  }
-
-  @Override
-  public boolean hasPermission(CommandSender sender) {
-    return sender.hasPermission("customdiscs.createsc");
-  }
-
-  @Override
-  public void executePlayer(Player player, CommandArguments arguments) {
-    if (!CustomDiscs.lavaLibExist) {
-      CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("error.command.no-youtube-support"));
-      return;
+        this.executesPlayer(this::executePlayer);
+        this.executes(this::execute);
     }
 
-    if (!hasPermission(player)) {
-      CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("error.command.no-permission"));
-      return;
+    @Override
+    public String getDescription() {
+        return plugin.getLanguage().string("command.createsc.description");
     }
 
-    if (!LegacyUtil.isMusicDiscInHand(player)) {
-      CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("command.create.messages.error.not-holding-disc"));
-      return;
+    @Override
+    public String getSyntax() {
+        return plugin.getLanguage().string("command.createsc.syntax");
     }
 
-    String customName = getArgumentValue(arguments, "song_name", String.class);
-
-    if (customName.isEmpty()) {
-      CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("error.command.disc-name-empty"));
-      return;
+    @Override
+    public boolean hasPermission(CommandSender sender) {
+        return sender.hasPermission("customdiscs.createsc");
     }
 
-    ItemStack disc = new ItemStack(player.getInventory().getItemInMainHand());
+    @Override
+    public void executePlayer(Player player, CommandArguments arguments) {
+        if (!CustomDiscs.lavaLibExist) {
+            CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("error.command.no-youtube-support"));
+            return;
+        }
 
-    ItemMeta meta = LegacyUtil.getItemMeta(disc);
+        if (!hasPermission(player)) {
+            CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("error.command.no-permission"));
+            return;
+        }
 
-    meta.setDisplayName(BukkitComponentSerializer.legacy().serialize(
-        plugin.getLanguage().component("disc-name.soundcloud")));
-    final TextComponent customLoreSong = Component.text()
-        .decoration(TextDecoration.ITALIC, false)
-        .content(customName)
-        .color(NamedTextColor.GRAY)
-        .build();
-    meta.addItemFlags(ItemFlag.values());
-    meta.setLore(List.of(BukkitComponentSerializer.legacy().serialize(customLoreSong)));
-    if (plugin.getCDConfig().isUseCustomModelDataSoundCloud())
-      meta.setCustomModelData(plugin.getCDConfig().getCustomModelDataSoundCloud());
+        if (!LegacyUtil.isMusicDiscInHand(player)) {
+            CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("command.create.messages.error.not-holding-disc"));
+            return;
+        }
 
-    String soundcloudUrl = getArgumentValue(arguments, "url", String.class);
+        String customName = getArgumentValue(arguments, "song_name", String.class);
 
-    PersistentDataContainer data = meta.getPersistentDataContainer();
-    if (data.has(Keys.CUSTOM_DISC.getKey(), Keys.CUSTOM_DISC.getDataType()))
-      data.remove(Keys.CUSTOM_DISC.getKey());
-    data.set(Keys.SOUNDCLOUD_DISC.getKey(), Keys.SOUNDCLOUD_DISC.getDataType(), soundcloudUrl);
+        if (customName.isEmpty()) {
+            CustomDiscs.sendMessage(player, plugin.getLanguage().PComponent("error.command.disc-name-empty"));
+            return;
+        }
 
-    player.getInventory().getItemInMainHand().setItemMeta(meta);
+        ItemStack disc = new ItemStack(player.getInventory().getItemInMainHand());
 
-    CustomDiscs.sendMessage(player, plugin.getLanguage().component("command.create.messages.link", soundcloudUrl));
-    CustomDiscs.sendMessage(player, plugin.getLanguage().component("command.create.messages.name", customName));
-  }
+        ItemMeta meta = LegacyUtil.getItemMeta(disc);
 
-  @Override
-  public void execute(CommandSender sender, CommandArguments arguments) {
-    CustomDiscs.sendMessage(sender, plugin.getLanguage().PComponent("error.command.cant-perform"));
-  }
+        meta.displayName(plugin.getLanguage().component("disc-name.soundcloud")
+                .decoration(TextDecoration.ITALIC, false));
+
+        final Component customLoreSong = Component.text(customName)
+                .decoration(TextDecoration.ITALIC, false)
+                .color(NamedTextColor.GRAY);
+
+        meta.addItemFlags(ItemFlag.values());
+        meta.lore(List.of(customLoreSong));
+
+        if (plugin.getCDConfig().isUseCustomModelDataYoutube())
+            meta.setCustomModelData(plugin.getCDConfig().getCustomModelDataYoutube());
+
+        String soundcloudUrl = getArgumentValue(arguments, "url", String.class);
+
+        PersistentDataContainer data = meta.getPersistentDataContainer();
+        for (NamespacedKey key : data.getKeys()) {
+            data.remove(key);
+        }
+        data.set(Keys.SOUNDCLOUD_DISC.getKey(), Keys.SOUNDCLOUD_DISC.getDataType(), soundcloudUrl);
+
+        player.getInventory().getItemInMainHand().setItemMeta(meta);
+
+        CustomDiscs.sendMessage(player, plugin.getLanguage().component("command.create.messages.link", soundcloudUrl));
+        CustomDiscs.sendMessage(player, plugin.getLanguage().component("command.create.messages.name", customName));
+    }
+
+    @Override
+    public void execute(CommandSender sender, CommandArguments arguments) {
+        CustomDiscs.sendMessage(sender, plugin.getLanguage().PComponent("error.command.cant-perform"));
+    }
 }

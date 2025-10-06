@@ -15,14 +15,20 @@ import de.maxhenkel.voicechat.api.ServerPlayer;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import de.maxhenkel.voicechat.api.audiochannel.LocationalAudioChannel;
 import io.github.subkek.lavaplayer.libs.dev.lavalink.youtube.YoutubeAudioSourceManager;
+import io.github.subkek.lavaplayer.libs.dev.lavalink.youtube.YoutubeSourceOptions;
+import io.github.subkek.lavaplayer.libs.dev.lavalink.youtube.clients.Music;
 import io.github.subkek.lavaplayer.libs.dev.lavalink.youtube.clients.TvHtml5Embedded;
 import io.github.subkek.lavaplayer.libs.dev.lavalink.youtube.clients.Web;
 import io.github.subkek.lavaplayer.libs.dev.lavalink.youtube.clients.skeleton.Client;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,52 +48,65 @@ public class LavaPlayerManager {
 
     public LavaPlayerManager() {
         registerYoutube();
-        registerSouncloud();
+        registerSoundcloud();
     }
 
     private void registerYoutube() {
-        YoutubeAudioSourceManager source = getYoutubeAudioSourceManager();
-        if (!plugin.getCDConfig().getYoutubePoToken().isBlank() && !plugin.getCDConfig().getYoutubePoVisitorData().isBlank()) {
-            Web.setPoTokenAndVisitorData(plugin.getCDConfig().getYoutubePoToken(), plugin.getCDConfig().getYoutubePoVisitorData());
+        YoutubeSourceOptions options = new YoutubeSourceOptions()
+                .setAllowSearch(false);
+
+        if (!plugin.getCDConfig().getYoutubeRemoteServer().isBlank()) {
+            options.setRemoteCipherUrl(
+                    plugin.getCDConfig().getYoutubeRemoteServer(),
+                    plugin.getCDConfig().getYoutubeRemoteServerPassword()
+            );
+        }
+
+        YoutubeAudioSourceManager source = getYoutubeAudioSourceManager(options);
+
+        if (!plugin.getCDConfig().getYoutubePoToken().isBlank() &&
+                !plugin.getCDConfig().getYoutubePoVisitorData().isBlank()) {
+
+            Web.setPoTokenAndVisitorData(
+                    plugin.getCDConfig().getYoutubePoToken(),
+                    plugin.getCDConfig().getYoutubePoVisitorData()
+            );
+
         } else if (plugin.getCDConfig().isYoutubeOauth2()) {
             try {
-                String oauth2token;
-
-                if (!refreshTokenFile.isFile() || !refreshTokenFile.exists()) oauth2token = null;
-                else {
-                    StringBuilder tokenBuilder = new StringBuilder();
-                    BufferedReader bufferedReader = new BufferedReader(new FileReader(refreshTokenFile));
-
-                    for (String line : bufferedReader.lines().toList()) {
-                        tokenBuilder.append(line);
-                    }
-
-                    oauth2token = tokenBuilder.toString().trim();
+                String oauth2token = null;
+                if (refreshTokenFile.exists() && refreshTokenFile.isFile()) {
+                    oauth2token = Files.readString(refreshTokenFile.toPath()).trim();
                 }
 
                 source.useOauth2(oauth2token, false);
                 if (oauth2token == null) listenForTokenChange(source);
+
             } catch (Throwable e) {
                 CustomDiscs.error("Error load Youtube OAuth2 token: ", e);
             }
         }
+
         lavaPlayerManager.registerSourceManager(source);
     }
 
-    private void registerSouncloud() {
+
+    private void registerSoundcloud() {
         SoundCloudAudioSourceManager source = SoundCloudAudioSourceManager.createDefault();
 
         lavaPlayerManager.registerSourceManager(source);
     }
 
-    private static YoutubeAudioSourceManager getYoutubeAudioSourceManager() {
+    private static YoutubeAudioSourceManager getYoutubeAudioSourceManager(YoutubeSourceOptions options) {
         Client[] clients = {
                 new TvHtml5Embedded(),
                 new Web()
         };
 
-        return new YoutubeAudioSourceManager(false, clients);
+        CustomDiscs.debug("Registering Youtube Chiper");
+        return new YoutubeAudioSourceManager(options, clients);
     }
+
 
     private void save() {
         for (AudioSourceManager manager : lavaPlayerManager.getSourceManagers()) {
@@ -169,7 +188,7 @@ public class LavaPlayerManager {
 
         for (ServerPlayer serverPlayer : lavaPlayer.playersInRange) {
             Player bukkitPlayer = (Player) serverPlayer.getPlayer();
-            plugin.getAudience().sender(bukkitPlayer).sendActionBar(actionbarComponent);
+            bukkitPlayer.sendActionBar(actionbarComponent);
         }
     }
 
